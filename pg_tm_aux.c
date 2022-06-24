@@ -45,13 +45,25 @@ check_permissions(void)
 
 static void check_lsn_not_on_current_timeline(XLogRecPtr target_lsn)
 {
+#if PG_VERSION_NUM < 150000
 	List	   *timelineHistory = readTimeLineHistory(ThisTimeLineID);
+#else
+	List	   *timelineHistory = readTimeLineHistory(GetWALInsertionTimeLine());
+#endif
 	TimeLineID target_tli = tliOfPointInHistory(target_lsn, timelineHistory);
 	list_free_deep(timelineHistory);
 
+#if PG_VERSION_NUM < 150000
 	if (target_tli == ThisTimeLineID)
+#else
+	if (target_tli == GetWALInsertionTimeLine())
+#endif
 		elog(ERROR, "This timeline %u includes slot LSN %X/%X. The slot must be created before switchover.",
+#if PG_VERSION_NUM < 150000
 				ThisTimeLineID,
+#else
+				GetWALInsertionTimeLine(),
+#endif
 				(uint32) (target_lsn >> 32),
 				(uint32) (target_lsn));
 }
